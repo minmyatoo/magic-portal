@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Magic Portal - Dimensional Rift</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.0/aframe.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.2.2/aframe-ar.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -29,7 +29,7 @@
             top: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             color: #fff;
             padding: 15px;
             border-radius: 10px;
@@ -37,7 +37,27 @@
             font-size: 14px;
             z-index: 1001;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .status-indicator {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 12px;
+            z-index: 1001;
+            display: none;
+        }
+        
+        .status-indicator.camera-active {
+            background: rgba(0, 255, 0, 0.8);
         }
         
         .magic-button {
@@ -63,6 +83,27 @@
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
         }
         
+        .magic-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .camera-button {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid #4ecdc4;
+            padding: 12px 25px;
+            border-radius: 25px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
+        }
+        
         .energy-ring {
             position: fixed;
             top: 50%;
@@ -83,24 +124,49 @@
             50% { transform: scale(1.2); opacity: 0.4; }
             100% { transform: scale(1.5); opacity: 0; }
         }
+        
+        .marker-hint {
+            position: fixed;
+            bottom: 170px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #4ecdc4;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 12px;
+            z-index: 1001;
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div class="instructions">
-        🌟 Point your camera at any flat surface and tap "Open Portal" to enter another dimension! 🌟
+    <div class="instructions" id="instructions">
+        🌟 Allow camera access, then point at any surface to create a magic portal! 🌟
     </div>
     
-    <button class="magic-button" onclick="activatePortal()">🔮 Open Portal</button>
+    <div class="status-indicator" id="status">
+        Camera initializing...
+    </div>
+    
+    <div class="marker-hint" id="marker-hint">
+        💡 No marker needed! Just point at any flat surface and the portal will appear!
+    </div>
+    
+    <button class="camera-button" id="camera-btn" onclick="initializeCamera()">📷 Start Camera</button>
+    <button class="magic-button" id="portal-btn" onclick="activatePortal()" disabled>🔮 Open Portal</button>
     
     <div class="energy-ring"></div>
     
     <a-scene
         vr-mode-ui="enabled: false"
-        renderer="logarithmicDepthBuffer: true; colorManagement: true;"
-        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;"
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; cameraParametersUrl: https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/camera_para.dat; maxDetectionRate: 30; canvasWidth: 640; canvasHeight: 480;"
         embedded
         gesture-detector
-        id="scene">
+        id="scene"
+        loading-screen="enabled: false">
         
         <!-- Assets -->
         <a-assets>
@@ -119,8 +185,14 @@
         <a-light type="ambient" color="#404040" intensity="0.4"></a-light>
         <a-light type="point" position="0 2 0" color="#4ecdc4" intensity="0.8" distance="10"></a-light>
         
-        <!-- AR Marker -->
-        <a-marker preset="hiro" id="portal-marker">
+        <!-- AR Marker (using both hiro and barcode for better detection) -->
+        <a-marker preset="hiro" id="portal-marker" 
+                  raycaster="objects: .interactive"
+                  smooth="true"
+                  smoothCount="10"
+                  smoothTolerance="0.01"
+                  smoothThreshold="5">
+            
             <!-- Portal Ring -->
             <a-ring id="portal-ring" 
                     position="0 0 0" 
@@ -128,7 +200,8 @@
                     radius-outer="1.0" 
                     color="#4ecdc4" 
                     material="shader: standard; emissive: #4ecdc4; emissiveIntensity: 0.6; transparent: true; opacity: 0.8"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear"
+                    class="interactive">
             </a-ring>
             
             <!-- Inner Portal Effect -->
@@ -145,7 +218,8 @@
                 <a-entity mixin="crystal" 
                          position="1.5 1 0" 
                          animation="property: rotation; to: 360 360 360; loop: true; dur: 6000; easing: linear"
-                         animation__float="property: position; to: 1.5 1.5 0.5; loop: true; dur: 3000; dir: alternate; easing: easeInOutSine">
+                         animation__float="property: position; to: 1.5 1.5 0.5; loop: true; dur: 3000; dir: alternate; easing: easeInOutSine"
+                         class="interactive">
                 </a-entity>
                 
                 <a-entity mixin="crystal" 
@@ -153,7 +227,8 @@
                          scale="0.7 0.7 0.7"
                          material="color: #45b7d1; emissive: #45b7d1"
                          animation="property: rotation; to: -360 360 -360; loop: true; dur: 8000; easing: linear"
-                         animation__float="property: position; to: -1.2 1.3 -0.2; loop: true; dur: 4000; dir: alternate; easing: easeInOutSine">
+                         animation__float="property: position; to: -1.2 1.3 -0.2; loop: true; dur: 4000; dir: alternate; easing: easeInOutSine"
+                         class="interactive">
                 </a-entity>
                 
                 <a-entity mixin="crystal" 
@@ -161,7 +236,8 @@
                          scale="0.5 0.5 0.5"
                          material="color: #96ceb4; emissive: #96ceb4"
                          animation="property: rotation; to: 180 -360 180; loop: true; dur: 5000; easing: linear"
-                         animation__float="property: position; to: 0.5 1.8 -0.3; loop: true; dur: 3500; dir: alternate; easing: easeInOutSine">
+                         animation__float="property: position; to: 0.5 1.8 -0.3; loop: true; dur: 3500; dir: alternate; easing: easeInOutSine"
+                         class="interactive">
                 </a-entity>
             </a-entity>
             
@@ -175,7 +251,8 @@
             <a-entity id="creature" 
                      position="0 1.5 0" 
                      scale="0.5 0.5 0.5" 
-                     visible="false">
+                     visible="false"
+                     class="interactive">
                 <!-- Body -->
                 <a-sphere position="0 0 0" 
                          radius="0.3" 
@@ -237,14 +314,20 @@
             </a-entity>
         </a-marker>
         
+        <!-- Alternative marker for better detection -->
+        <a-marker type="pattern" url="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/data/patt.kanji" id="backup-marker">
+            <a-box position="0 0.5 0" material="color: #4ecdc4; emissive: #4ecdc4; emissiveIntensity: 0.5" 
+                   animation="property: rotation; to: 360 360 360; loop: true; dur: 2000">
+            </a-box>
+        </a-marker>
+        
         <!-- AR Camera -->
-        <a-entity camera>
+        <a-entity camera look-controls-enabled="false" cursor="rayOrigin: mouse">
             <a-cursor
                 geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
                 material="color: #4ecdc4; shader: flat"
                 position="0 0 -1"
                 animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-                animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
                 raycaster="objects: .interactive">
             </a-cursor>
         </a-entity>
@@ -254,10 +337,103 @@
         let portalActive = false;
         let particleCount = 0;
         let creatureVisible = false;
+        let cameraReady = false;
+        let arSystemReady = false;
+        
+        // Initialize camera access
+        async function initializeCamera() {
+            const statusEl = document.getElementById('status');
+            const cameraBtn = document.getElementById('camera-btn');
+            const portalBtn = document.getElementById('portal-btn');
+            const markerHint = document.getElementById('marker-hint');
+            
+            try {
+                statusEl.style.display = 'block';
+                statusEl.textContent = 'Requesting camera access...';
+                statusEl.className = 'status-indicator';
+                
+                // Request camera permission
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                // Stop the stream as AR.js will handle it
+                stream.getTracks().forEach(track => track.stop());
+                
+                statusEl.textContent = '✅ Camera ready! Point at any surface to see the portal';
+                statusEl.className = 'status-indicator camera-active';
+                cameraBtn.style.display = 'none';
+                portalBtn.disabled = false;
+                markerHint.style.display = 'block';
+                cameraReady = true;
+                
+                // Hide status after 3 seconds
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                    markerHint.style.display = 'none';
+                }, 5000);
+                
+                // Initialize AR system
+                initializeAR();
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                statusEl.textContent = '❌ Camera access denied. Please allow camera access and refresh.';
+                statusEl.className = 'status-indicator';
+            }
+        }
+        
+        // Initialize AR system
+        function initializeAR() {
+            const scene = document.getElementById('scene');
+            
+            scene.addEventListener('renderstart', () => {
+                console.log('AR rendering started');
+                arSystemReady = true;
+            });
+            
+            // Wait for AR.js to be ready
+            scene.addEventListener('loaded', () => {
+                console.log('AR scene loaded');
+                setupMarkerEvents();
+            });
+        }
+        
+        // Setup marker detection events
+        function setupMarkerEvents() {
+            const marker = document.getElementById('portal-marker');
+            const backupMarker = document.getElementById('backup-marker');
+            
+            marker.addEventListener('markerFound', () => {
+                console.log('Portal marker detected!');
+                document.getElementById('instructions').innerHTML = '🎉 Portal detected! Tap "Open Portal" to activate the magic! 🎉';
+                
+                if (portalActive) {
+                    activatePortalEffects();
+                }
+            });
+            
+            marker.addEventListener('markerLost', () => {
+                console.log('Portal marker lost!');
+                document.getElementById('instructions').innerHTML = '🔍 Point camera at a flat surface to detect the portal again';
+            });
+            
+            backupMarker.addEventListener('markerFound', () => {
+                console.log('Backup marker detected!');
+            });
+        }
         
         // Initialize particle system
         function createSpiralParticles() {
             const spiralContainer = document.getElementById('spiral-particles');
+            if (!spiralContainer) return;
+            
+            // Clear existing particles
+            spiralContainer.innerHTML = '';
             
             for (let i = 0; i < 30; i++) {
                 const particle = document.createElement('a-entity');
@@ -279,10 +455,10 @@
         
         // Activate portal with dramatic effects
         function activatePortal() {
-            if (portalActive) return;
+            if (portalActive || !cameraReady) return;
             
             portalActive = true;
-            const button = document.querySelector('.magic-button');
+            const button = document.querySelector('#portal-btn');
             const energyRing = document.querySelector('.energy-ring');
             
             // Button feedback
@@ -298,42 +474,40 @@
                 
                 // Activate advanced effects
                 createSpiralParticles();
-                activateAdvancedEffects();
+                activatePortalEffects();
+                
+                document.getElementById('instructions').innerHTML = '🌟 Portal is active! Look for the AR marker to see the magic! 🌟';
             }, 1000);
         }
         
-        // Advanced portal effects
-        function activateAdvancedEffects() {
-            const marker = document.getElementById('portal-marker');
-            
-            marker.addEventListener('markerFound', () => {
-                console.log('Portal marker detected!');
-                
-                // Enhanced portal ring effect
-                const portalRing = document.getElementById('portal-ring');
+        // Activate portal effects when marker is found
+        function activatePortalEffects() {
+            // Enhanced portal ring effect
+            const portalRing = document.getElementById('portal-ring');
+            if (portalRing) {
                 portalRing.setAttribute('animation__scale', 'property: scale; to: 1.2 1.2 1.2; loop: true; dur: 2000; dir: alternate; easing: easeInOutSine');
-                
-                // Activate creature after 3 seconds
-                setTimeout(() => {
-                    if (!creatureVisible) {
-                        activateCreature();
-                    }
-                }, 3000);
-                
-                // Dynamic lighting effects
-                setTimeout(() => {
-                    addLightningEffect();
-                }, 5000);
-            });
+            }
             
-            marker.addEventListener('markerLost', () => {
-                console.log('Portal marker lost!');
-            });
+            // Activate creature after 3 seconds
+            setTimeout(() => {
+                if (!creatureVisible && portalActive) {
+                    activateCreature();
+                }
+            }, 3000);
+            
+            // Dynamic lighting effects
+            setTimeout(() => {
+                if (portalActive) {
+                    addLightningEffect();
+                }
+            }, 5000);
         }
         
         // Activate mystical creature
         function activateCreature() {
             const creature = document.getElementById('creature');
+            if (!creature) return;
+            
             creature.setAttribute('visible', 'true');
             creatureVisible = true;
             
@@ -351,7 +525,9 @@
         
         // Add lightning effect
         function addLightningEffect() {
-            const scene = document.getElementById('scene');
+            const marker = document.getElementById('portal-marker');
+            if (!marker) return;
+            
             const lightning = document.createElement('a-light');
             lightning.setAttribute('type', 'point');
             lightning.setAttribute('position', '0 3 0');
@@ -360,17 +536,19 @@
             lightning.setAttribute('distance', '10');
             lightning.setAttribute('animation', 'property: intensity; to: 0; dur: 200; loop: true; dir: alternate');
             
-            const marker = document.getElementById('portal-marker');
             marker.appendChild(lightning);
             
             setTimeout(() => {
-                marker.removeChild(lightning);
+                if (marker.contains(lightning)) {
+                    marker.removeChild(lightning);
+                }
             }, 2000);
         }
         
         // Magic burst effect
         function addMagicBurst() {
             const marker = document.getElementById('portal-marker');
+            if (!marker) return;
             
             for (let i = 0; i < 10; i++) {
                 const burst = document.createElement('a-sphere');
@@ -389,26 +567,17 @@
                 marker.appendChild(burst);
                 
                 setTimeout(() => {
-                    marker.removeChild(burst);
+                    if (marker.contains(burst)) {
+                        marker.removeChild(burst);
+                    }
                 }, 1000);
             }
         }
         
-        // Gesture controls
-        window.addEventListener('deviceorientation', (event) => {
-            if (portalActive && creatureVisible) {
-                const creature = document.getElementById('creature');
-                const tilt = event.gamma; // Left-right tilt
-                
-                if (Math.abs(tilt) > 15) {
-                    creature.setAttribute('animation__tilt', `property: rotation; to: 0 ${tilt * 2} 0; dur: 500; easing: easeOutQuad`);
-                }
-            }
-        });
-        
-        // Screen touch effects
+        // Touch effects
         document.addEventListener('touchstart', (event) => {
-            if (portalActive) {
+            if (portalActive && cameraReady) {
+                event.preventDefault();
                 const touch = event.touches[0];
                 const x = (touch.clientX / window.innerWidth - 0.5) * 4;
                 const y = (1 - touch.clientY / window.innerHeight - 0.5) * 4;
@@ -419,6 +588,8 @@
         
         function addTouchEffect(x, y) {
             const marker = document.getElementById('portal-marker');
+            if (!marker) return;
+            
             const effect = document.createElement('a-ring');
             effect.setAttribute('position', `${x} ${y} 0.1`);
             effect.setAttribute('radius-inner', '0.1');
@@ -431,17 +602,30 @@
             marker.appendChild(effect);
             
             setTimeout(() => {
-                marker.removeChild(effect);
+                if (marker.contains(effect)) {
+                    marker.removeChild(effect);
+                }
             }, 1000);
         }
         
-        // Auto-start some effects
-        setTimeout(() => {
-            const energyRing = document.querySelector('.energy-ring');
-            energyRing.style.display = 'block';
-        }, 2000);
+        // Auto-initialize on load
+        window.addEventListener('load', () => {
+            console.log('🌟 AR Magic Portal loaded! Click "Start Camera" to begin! 🌟');
+            
+            // Check if camera is already available
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                console.log('Camera API available');
+            } else {
+                console.error('Camera API not available');
+                document.getElementById('status').style.display = 'block';
+                document.getElementById('status').textContent = '❌ Camera not supported in this browser';
+            }
+        });
         
-        console.log('🌟 AR Magic Portal initialized! Point your camera at the AR marker and tap "Open Portal" to begin your interdimensional journey! 🌟');
+        // Error handling
+        window.addEventListener('error', (event) => {
+            console.error('Error:', event.error);
+        });
     </script>
 </body>
 </html>
