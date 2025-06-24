@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Magic Portal - Dimensional Rift</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.0/aframe.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ar.js/2.2.2/aframe-ar.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+        
+        .ar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .instructions {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+            z-index: 1001;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .magic-button {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .magic-button:hover {
+            transform: translateX(-50%) scale(1.1);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+        
+        .energy-ring {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 200px;
+            height: 200px;
+            margin: -100px 0 0 -100px;
+            border: 2px solid #4ecdc4;
+            border-radius: 50%;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 999;
+            animation: energyPulse 2s infinite;
+        }
+        
+        @keyframes energyPulse {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 0.4; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        🌟 Point your camera at any flat surface and tap "Open Portal" to enter another dimension! 🌟
+    </div>
+    
+    <button class="magic-button" onclick="activatePortal()">🔮 Open Portal</button>
+    
+    <div class="energy-ring"></div>
+    
+    <a-scene
+        vr-mode-ui="enabled: false"
+        renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+        arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        embedded
+        gesture-detector
+        id="scene">
+        
+        <!-- Assets -->
+        <a-assets>
+            <a-mixin id="particle" 
+                     geometry="primitive: sphere; radius: 0.02"
+                     material="color: #4ecdc4; shader: standard; emissive: #4ecdc4; emissiveIntensity: 0.5">
+            </a-mixin>
+            
+            <a-mixin id="crystal" 
+                     geometry="primitive: octahedron; radius: 0.3"
+                     material="color: #ff6b6b; shader: standard; emissive: #ff6b6b; emissiveIntensity: 0.3; transparent: true; opacity: 0.8">
+            </a-mixin>
+        </a-assets>
+        
+        <!-- Lighting -->
+        <a-light type="ambient" color="#404040" intensity="0.4"></a-light>
+        <a-light type="point" position="0 2 0" color="#4ecdc4" intensity="0.8" distance="10"></a-light>
+        
+        <!-- AR Marker -->
+        <a-marker preset="hiro" id="portal-marker">
+            <!-- Portal Ring -->
+            <a-ring id="portal-ring" 
+                    position="0 0 0" 
+                    radius-inner="0.8" 
+                    radius-outer="1.0" 
+                    color="#4ecdc4" 
+                    material="shader: standard; emissive: #4ecdc4; emissiveIntensity: 0.6; transparent: true; opacity: 0.8"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear">
+            </a-ring>
+            
+            <!-- Inner Portal Effect -->
+            <a-circle id="portal-inner" 
+                     position="0 0 -0.01" 
+                     radius="0.8" 
+                     color="#000" 
+                     material="shader: standard; transparent: true; opacity: 0.9"
+                     animation="property: material.opacity; to: 0.3; loop: true; dur: 2000; dir: alternate; easing: easeInOutQuad">
+            </a-circle>
+            
+            <!-- Floating Crystals -->
+            <a-entity id="crystal-container">
+                <a-entity mixin="crystal" 
+                         position="1.5 1 0" 
+                         animation="property: rotation; to: 360 360 360; loop: true; dur: 6000; easing: linear"
+                         animation__float="property: position; to: 1.5 1.5 0.5; loop: true; dur: 3000; dir: alternate; easing: easeInOutSine">
+                </a-entity>
+                
+                <a-entity mixin="crystal" 
+                         position="-1.2 0.8 0.3" 
+                         scale="0.7 0.7 0.7"
+                         material="color: #45b7d1; emissive: #45b7d1"
+                         animation="property: rotation; to: -360 360 -360; loop: true; dur: 8000; easing: linear"
+                         animation__float="property: position; to: -1.2 1.3 -0.2; loop: true; dur: 4000; dir: alternate; easing: easeInOutSine">
+                </a-entity>
+                
+                <a-entity mixin="crystal" 
+                         position="0.5 1.2 -0.8" 
+                         scale="0.5 0.5 0.5"
+                         material="color: #96ceb4; emissive: #96ceb4"
+                         animation="property: rotation; to: 180 -360 180; loop: true; dur: 5000; easing: linear"
+                         animation__float="property: position; to: 0.5 1.8 -0.3; loop: true; dur: 3500; dir: alternate; easing: easeInOutSine">
+                </a-entity>
+            </a-entity>
+            
+            <!-- Particle System -->
+            <a-entity id="particle-system" position="0 0 0">
+                <!-- Spiral Particles -->
+                <a-entity id="spiral-particles"></a-entity>
+            </a-entity>
+            
+            <!-- Mystical Creature -->
+            <a-entity id="creature" 
+                     position="0 1.5 0" 
+                     scale="0.5 0.5 0.5" 
+                     visible="false">
+                <!-- Body -->
+                <a-sphere position="0 0 0" 
+                         radius="0.3" 
+                         color="#ff6b6b" 
+                         material="shader: standard; emissive: #ff6b6b; emissiveIntensity: 0.3; transparent: true; opacity: 0.8">
+                </a-sphere>
+                
+                <!-- Wings -->
+                <a-plane position="-0.4 0 0" 
+                        rotation="0 0 45" 
+                        width="0.6" 
+                        height="0.3" 
+                        color="#4ecdc4" 
+                        material="transparent: true; opacity: 0.6; side: double"
+                        animation="property: rotation; to: 0 0 -45; loop: true; dur: 1000; dir: alternate; easing: easeInOutSine">
+                </a-plane>
+                
+                <a-plane position="0.4 0 0" 
+                        rotation="0 0 -45" 
+                        width="0.6" 
+                        height="0.3" 
+                        color="#4ecdc4" 
+                        material="transparent: true; opacity: 0.6; side: double"
+                        animation="property: rotation; to: 0 0 45; loop: true; dur: 1000; dir: alternate; easing: easeInOutSine">
+                </a-plane>
+                
+                <!-- Eyes -->
+                <a-sphere position="-0.1 0.1 0.2" 
+                         radius="0.05" 
+                         color="#fff" 
+                         material="emissive: #fff; emissiveIntensity: 0.8">
+                </a-sphere>
+                <a-sphere position="0.1 0.1 0.2" 
+                         radius="0.05" 
+                         color="#fff" 
+                         material="emissive: #fff; emissiveIntensity: 0.8">
+                </a-sphere>
+            </a-entity>
+            
+            <!-- Energy Beams -->
+            <a-entity id="energy-beams">
+                <a-cylinder position="0 0 0" 
+                           radius="0.02" 
+                           height="3" 
+                           color="#4ecdc4" 
+                           material="emissive: #4ecdc4; emissiveIntensity: 0.8; transparent: true; opacity: 0.6"
+                           rotation="45 0 0"
+                           animation="property: rotation; to: 405 360 360; loop: true; dur: 4000; easing: linear">
+                </a-cylinder>
+                
+                <a-cylinder position="0 0 0" 
+                           radius="0.02" 
+                           height="3" 
+                           color="#ff6b6b" 
+                           material="emissive: #ff6b6b; emissiveIntensity: 0.8; transparent: true; opacity: 0.6"
+                           rotation="-45 0 0"
+                           animation="property: rotation; to: -405 -360 -360; loop: true; dur: 4000; easing: linear">
+                </a-cylinder>
+            </a-entity>
+        </a-marker>
+        
+        <!-- AR Camera -->
+        <a-entity camera>
+            <a-cursor
+                geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+                material="color: #4ecdc4; shader: flat"
+                position="0 0 -1"
+                animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+                animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
+                raycaster="objects: .interactive">
+            </a-cursor>
+        </a-entity>
+    </a-scene>
+
+    <script>
+        let portalActive = false;
+        let particleCount = 0;
+        let creatureVisible = false;
+        
+        // Initialize particle system
+        function createSpiralParticles() {
+            const spiralContainer = document.getElementById('spiral-particles');
+            
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('a-entity');
+                particle.setAttribute('mixin', 'particle');
+                
+                const angle = (i / 30) * Math.PI * 8;
+                const radius = 0.5 + (i / 30) * 0.5;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                const y = (i / 30) * 2;
+                
+                particle.setAttribute('position', `${x} ${y} ${z}`);
+                particle.setAttribute('animation', `property: position; to: ${x * 1.5} ${y + 1} ${z * 1.5}; loop: true; dur: ${3000 + i * 100}; dir: alternate; easing: easeInOutSine`);
+                particle.setAttribute('animation__rotate', `property: rotation; to: 360 360 360; loop: true; dur: ${2000 + i * 50}; easing: linear`);
+                
+                spiralContainer.appendChild(particle);
+            }
+        }
+        
+        // Activate portal with dramatic effects
+        function activatePortal() {
+            if (portalActive) return;
+            
+            portalActive = true;
+            const button = document.querySelector('.magic-button');
+            const energyRing = document.querySelector('.energy-ring');
+            
+            // Button feedback
+            button.style.transform = 'translateX(-50%) scale(0.9)';
+            button.innerHTML = '🌟 Portal Opening...';
+            
+            // Show energy ring
+            energyRing.style.opacity = '1';
+            
+            setTimeout(() => {
+                button.innerHTML = '✨ Portal Active!';
+                button.style.background = 'linear-gradient(45deg, #4ecdc4, #45b7d1)';
+                
+                // Activate advanced effects
+                createSpiralParticles();
+                activateAdvancedEffects();
+            }, 1000);
+        }
+        
+        // Advanced portal effects
+        function activateAdvancedEffects() {
+            const marker = document.getElementById('portal-marker');
+            
+            marker.addEventListener('markerFound', () => {
+                console.log('Portal marker detected!');
+                
+                // Enhanced portal ring effect
+                const portalRing = document.getElementById('portal-ring');
+                portalRing.setAttribute('animation__scale', 'property: scale; to: 1.2 1.2 1.2; loop: true; dur: 2000; dir: alternate; easing: easeInOutSine');
+                
+                // Activate creature after 3 seconds
+                setTimeout(() => {
+                    if (!creatureVisible) {
+                        activateCreature();
+                    }
+                }, 3000);
+                
+                // Dynamic lighting effects
+                setTimeout(() => {
+                    addLightningEffect();
+                }, 5000);
+            });
+            
+            marker.addEventListener('markerLost', () => {
+                console.log('Portal marker lost!');
+            });
+        }
+        
+        // Activate mystical creature
+        function activateCreature() {
+            const creature = document.getElementById('creature');
+            creature.setAttribute('visible', 'true');
+            creatureVisible = true;
+            
+            // Creature entrance animation
+            creature.setAttribute('animation__entrance', 'property: scale; from: 0 0 0; to: 0.5 0.5 0.5; dur: 1500; easing: easeOutElastic');
+            creature.setAttribute('animation__float', 'property: position; to: 0 2 0; loop: true; dur: 4000; dir: alternate; easing: easeInOutSine');
+            creature.setAttribute('animation__rotate', 'property: rotation; to: 0 360 0; loop: true; dur: 8000; easing: linear');
+            
+            // Creature interaction
+            creature.addEventListener('click', () => {
+                creature.setAttribute('animation__celebrate', 'property: scale; to: 0.8 0.8 0.8; dur: 300; dir: alternate; loop: 2');
+                addMagicBurst();
+            });
+        }
+        
+        // Add lightning effect
+        function addLightningEffect() {
+            const scene = document.getElementById('scene');
+            const lightning = document.createElement('a-light');
+            lightning.setAttribute('type', 'point');
+            lightning.setAttribute('position', '0 3 0');
+            lightning.setAttribute('color', '#ffffff');
+            lightning.setAttribute('intensity', '2');
+            lightning.setAttribute('distance', '10');
+            lightning.setAttribute('animation', 'property: intensity; to: 0; dur: 200; loop: true; dir: alternate');
+            
+            const marker = document.getElementById('portal-marker');
+            marker.appendChild(lightning);
+            
+            setTimeout(() => {
+                marker.removeChild(lightning);
+            }, 2000);
+        }
+        
+        // Magic burst effect
+        function addMagicBurst() {
+            const marker = document.getElementById('portal-marker');
+            
+            for (let i = 0; i < 10; i++) {
+                const burst = document.createElement('a-sphere');
+                burst.setAttribute('radius', '0.05');
+                burst.setAttribute('color', '#ffff00');
+                burst.setAttribute('material', 'emissive: #ffff00; emissiveIntensity: 0.8');
+                
+                const x = (Math.random() - 0.5) * 2;
+                const y = Math.random() * 2 + 1;
+                const z = (Math.random() - 0.5) * 2;
+                
+                burst.setAttribute('position', `${x} ${y} ${z}`);
+                burst.setAttribute('animation', `property: scale; to: 0 0 0; dur: 1000; easing: easeOutQuad`);
+                burst.setAttribute('animation__move', `property: position; to: ${x * 2} ${y + 1} ${z * 2}; dur: 1000; easing: easeOutQuad`);
+                
+                marker.appendChild(burst);
+                
+                setTimeout(() => {
+                    marker.removeChild(burst);
+                }, 1000);
+            }
+        }
+        
+        // Gesture controls
+        window.addEventListener('deviceorientation', (event) => {
+            if (portalActive && creatureVisible) {
+                const creature = document.getElementById('creature');
+                const tilt = event.gamma; // Left-right tilt
+                
+                if (Math.abs(tilt) > 15) {
+                    creature.setAttribute('animation__tilt', `property: rotation; to: 0 ${tilt * 2} 0; dur: 500; easing: easeOutQuad`);
+                }
+            }
+        });
+        
+        // Screen touch effects
+        document.addEventListener('touchstart', (event) => {
+            if (portalActive) {
+                const touch = event.touches[0];
+                const x = (touch.clientX / window.innerWidth - 0.5) * 4;
+                const y = (1 - touch.clientY / window.innerHeight - 0.5) * 4;
+                
+                addTouchEffect(x, y);
+            }
+        });
+        
+        function addTouchEffect(x, y) {
+            const marker = document.getElementById('portal-marker');
+            const effect = document.createElement('a-ring');
+            effect.setAttribute('position', `${x} ${y} 0.1`);
+            effect.setAttribute('radius-inner', '0.1');
+            effect.setAttribute('radius-outer', '0.2');
+            effect.setAttribute('color', '#4ecdc4');
+            effect.setAttribute('material', 'emissive: #4ecdc4; emissiveIntensity: 0.8; transparent: true; opacity: 0.8');
+            effect.setAttribute('animation', 'property: scale; to: 3 3 3; dur: 1000; easing: easeOutQuad');
+            effect.setAttribute('animation__fade', 'property: material.opacity; to: 0; dur: 1000; easing: easeOutQuad');
+            
+            marker.appendChild(effect);
+            
+            setTimeout(() => {
+                marker.removeChild(effect);
+            }, 1000);
+        }
+        
+        // Auto-start some effects
+        setTimeout(() => {
+            const energyRing = document.querySelector('.energy-ring');
+            energyRing.style.display = 'block';
+        }, 2000);
+        
+        console.log('🌟 AR Magic Portal initialized! Point your camera at the AR marker and tap "Open Portal" to begin your interdimensional journey! 🌟');
+    </script>
+</body>
+</html>
